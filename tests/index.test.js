@@ -18,6 +18,27 @@ function createElement(value = "") {
 }
 
 function setupPdfSandbox() {
+  const blobRegistry = new Map();
+  let blobId = 1;
+
+  function registerPages(pages) {
+    const id = blobId;
+    blobId += 1;
+    const blob = new Blob([Uint8Array.of(id)], { type: "application/pdf" });
+    blobRegistry.set(id, {
+      pages,
+      getPageIndices() {
+        return pages.map((_, index) => index);
+      },
+    });
+    return blob;
+  }
+
+  async function getBlobPages(blob) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return blobRegistry.get(bytes[0])?.pages || [[{ kind: "pdf-page", source: bytes[0] }]];
+  }
+
   const canvas = {
     width: 0,
     height: 0,
@@ -72,7 +93,7 @@ function setupPdfSandbox() {
     }
 
     output() {
-      return { pages: this.pages };
+      return registerPages(this.pages);
     }
 
     setTextColor() {}
@@ -104,10 +125,39 @@ function setupPdfSandbox() {
     },
     window: {
       jspdf: { jsPDF: FakePDF },
+      PDFLib: {
+        PDFDocument: {
+          async create() {
+            return {
+              pages: [],
+              async copyPages(source, indices) {
+                return indices.map((index) => source.pages[index]);
+              },
+              addPage(page) {
+                this.pages.push(page);
+              },
+              async save() {
+                const blob = registerPages(this.pages);
+                return new Uint8Array(await blob.arrayBuffer());
+              },
+            };
+          },
+          async load(bytes) {
+            const id = new Uint8Array(bytes)[0];
+            return blobRegistry.get(id) || {
+              pages: [[{ kind: "pdf-page", source: id }]],
+              getPageIndices() {
+                return [0];
+              },
+            };
+          },
+        },
+      },
     },
     atob(value) {
       return Buffer.from(value, "base64").toString("binary");
     },
+    Blob,
     FileReader: class {
       readAsDataURL(file) {
         this.onload({ target: { result: file.dataUrl } });
@@ -129,7 +179,7 @@ function setupPdfSandbox() {
   };
 
   vm.runInNewContext(script, context);
-  return { context, elements, getLastDoc: () => lastDoc };
+  return { context, elements, getLastDoc: () => lastDoc, getBlobPages };
 }
 
 function jpegDataUrlWithExifOrientation(orientation, width, height) {
@@ -212,8 +262,12 @@ test("successful submit resets fields, photos, and preview for the next expense"
   assert.match(html, /render\(\)/);
 });
 
+test("file input accepts photos and PDF receipts", () => {
+  assert.match(html, /accept=["']image\/\*,application\/pdf["']/);
+});
+
 test("PDF omits the expense summary page when only photos were added", async () => {
-  const { context, elements, getLastDoc } = setupPdfSandbox();
+  const { context, elements, getBlobPages } = setupPdfSandbox();
 
   await elements.photos.onchange({
     target: {
@@ -221,12 +275,12 @@ test("PDF omits the expense summary page when only photos were added", async () 
     },
   });
 
-  await context.genPDF();
+  const blob = await context.genPDF();
 
-  const doc = getLastDoc();
-  assert.equal(doc.pages.length, 1);
-  assert.equal(doc.pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), false);
-  assert.equal(doc.pages[0].filter((entry) => entry.kind === "image").length, 1);
+  const pages = await getBlobPages(blob);
+  assert.equal(pages.length, 1);
+  assert.equal(pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), false);
+  assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
 });
 
 test("PDF receipt images keep their original aspect ratio instead of stretching to A4", async () => {
@@ -275,7 +329,7 @@ test("fallback image normalization does not double-rotate already oriented brows
 });
 
 test("PDF includes the expense summary page when a non-photo field changed", async () => {
-  const { context, elements, getLastDoc } = setupPdfSandbox();
+  const { context, elements, getBlobPages } = setupPdfSandbox();
 
   elements.description.value = "Dejeuner chantier";
   await elements.photos.onchange({
@@ -284,10 +338,40 @@ test("PDF includes the expense summary page when a non-photo field changed", asy
     },
   });
 
-  await context.genPDF();
+  const blob = await context.genPDF();
 
-  const doc = getLastDoc();
-  assert.equal(doc.pages.length, 2);
-  assert.equal(doc.pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), true);
-  assert.equal(doc.pages[1].filter((entry) => entry.kind === "image").length, 1);
+  const pages = await getBlobPages(blob);
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), true);
+  assert.equal(pages[1].filter((entry) => entry.kind === "image").length, 1);
+});
+
+test("PDF receipt files are merged into the generated note instead of rendered as images", async () => {
+  const { context, elements, getBlobPages } = setupPdfSandbox();
+
+  await elements.photos.onchange({
+    target: {
+      files: [{ name: "facture.pdf", type: "application/pdf", dataUrl: "data:application/pdf;base64,Yw==" }],
+    },
+  });
+
+  const blob = await context.genPDF();
+  const pages = await getBlobPages(blob);
+
+  assert.equal(pages.length, 1);
+  assert.deepEqual(pages[0], [{ kind: "pdf-page", source: 99 }]);
+  assert.match(elements.preview.innerHTML, /facture\.pdf/);
+});
+
+test("PDF preview escapes receipt file names before rendering", async () => {
+  const { elements } = setupPdfSandbox();
+
+  await elements.photos.onchange({
+    target: {
+      files: [{ name: '<img src=x onerror=alert(1)>.pdf', type: "application/pdf", dataUrl: "data:application/pdf;base64,Yw==" }],
+    },
+  });
+
+  assert.doesNotMatch(elements.preview.innerHTML, /<img src=x/);
+  assert.match(elements.preview.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;\.pdf/);
 });
