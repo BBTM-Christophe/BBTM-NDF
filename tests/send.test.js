@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const test = require("node:test");
 
-test("send function sends the PDF to the requested invoices mailbox and returns success JSON", async () => {
+test("send function sends the PDF to the test mailbox and returns success JSON", async () => {
   const sentMessages = [];
   const originalLoad = Module._load;
 
@@ -44,7 +44,7 @@ test("send function sends the PDF to the requested invoices mailbox and returns 
     assert.equal(response.headers["Content-Type"], "application/json");
     assert.deepEqual(JSON.parse(response.body), { ok: true });
     assert.equal(sentMessages.length, 1);
-    assert.equal(sentMessages[0].to, "factures+cBBT-0584b1@m.inexweb.fr");
+    assert.equal(sentMessages[0].to, "christophe@bbtm.fr");
     assert.equal(sentMessages[0].attachments[0].filename, "note.pdf");
   } finally {
     Module._load = originalLoad;
