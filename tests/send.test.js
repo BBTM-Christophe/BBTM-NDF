@@ -44,7 +44,7 @@ test("send function sends the PDF to the test mailbox and returns success JSON",
     assert.equal(response.headers["Content-Type"], "application/json");
     assert.deepEqual(JSON.parse(response.body), { ok: true });
     assert.equal(sentMessages.length, 1);
-    assert.equal(sentMessages[0].to, "christophe@bbtm.fr");
+    assert.equal(sentMessages[0].to, "factures+cBBT-0584b1@m.inexweb.fr");
     assert.equal(sentMessages[0].attachments[0].filename, "note.pdf");
   } finally {
     Module._load = originalLoad;

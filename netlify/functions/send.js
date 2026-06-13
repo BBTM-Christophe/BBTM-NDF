@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const INVOICES_TO = "christophe@bbtm.fr";
+const INVOICES_TO = "factures+cBBT-0584b1@m.inexweb.fr";
 const jsonHeaders = { "Content-Type": "application/json" };
 
 function json(statusCode, body) {
