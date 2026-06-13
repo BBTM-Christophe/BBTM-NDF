@@ -89,13 +89,221 @@ function readBlobAsBase64(blob){
  });
 }
 
-photos.onchange=e=>{
- clearStatus();
- [...e.target.files].forEach(f=>{
+function readFileAsDataUrl(file){
+ return new Promise((resolve,reject)=>{
   const r=new FileReader();
-  r.onload=x=>{images.push(x.target.result);render();};
-  r.readAsDataURL(f);
- })
+  r.onload=x=>resolve(x.target.result);
+  r.onerror=()=>reject(new Error("Lecture de l'image impossible."));
+  r.readAsDataURL(file);
+ });
+}
+
+function getJpegDataView(src){
+ const jpegPrefix=src.match(/^data:image\/jpeg[^,]*,/i);
+ if(!jpegPrefix||typeof atob!=='function'){
+  return null;
+ }
+
+ try{
+  const binary=atob(src.slice(jpegPrefix[0].length));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i+=1){
+   bytes[i]=binary.charCodeAt(i);
+  }
+  return new DataView(bytes.buffer);
+ }catch(error){
+  return null;
+ }
+}
+
+function getExifOrientation(src){
+ const view=getJpegDataView(src);
+ if(!view){
+  return 1;
+ }
+
+ try{
+  if(view.byteLength<4||view.getUint16(0,false)!==0xffd8){
+   return 1;
+  }
+
+  let offset=2;
+  while(offset+4<view.byteLength){
+   if(view.getUint8(offset)!==0xff){
+    break;
+   }
+   const marker=view.getUint8(offset+1);
+   const length=view.getUint16(offset+2,false);
+   if(marker===0xe1&&offset+4+length<=view.byteLength){
+    const exifStart=offset+4;
+    const isExif=String.fromCharCode(
+     view.getUint8(exifStart),
+     view.getUint8(exifStart+1),
+     view.getUint8(exifStart+2),
+     view.getUint8(exifStart+3)
+    )==='Exif';
+    if(!isExif){
+     return 1;
+    }
+
+    const tiffStart=exifStart+6;
+    const endian=view.getUint16(tiffStart,false);
+    const little=endian===0x4949;
+    if(!little&&endian!==0x4d4d){
+     return 1;
+    }
+    if(view.getUint16(tiffStart+2,little)!==0x002a){
+     return 1;
+    }
+
+    const ifdStart=tiffStart+view.getUint32(tiffStart+4,little);
+    const entries=view.getUint16(ifdStart,little);
+    for(let i=0;i<entries;i+=1){
+     const entry=ifdStart+2+i*12;
+     if(entry+12>view.byteLength){
+      break;
+     }
+     if(view.getUint16(entry,little)===0x0112){
+      return view.getUint16(entry+8,little);
+     }
+    }
+   }
+   offset+=2+length;
+  }
+ }catch(error){
+  return 1;
+ }
+
+ return 1;
+}
+
+function getJpegDimensions(src){
+ const view=getJpegDataView(src);
+ if(!view){
+  return {width:0,height:0};
+ }
+
+ try{
+  if(view.byteLength<4||view.getUint16(0,false)!==0xffd8){
+   return {width:0,height:0};
+  }
+
+  let offset=2;
+  while(offset+9<view.byteLength){
+   if(view.getUint8(offset)!==0xff){
+    break;
+   }
+   const marker=view.getUint8(offset+1);
+   const length=view.getUint16(offset+2,false);
+   const isStartOfFrame=(marker>=0xc0&&marker<=0xcf)&&![0xc4,0xc8,0xcc].includes(marker);
+   if(isStartOfFrame){
+    return {
+     height:view.getUint16(offset+5,false),
+     width:view.getUint16(offset+7,false)
+    };
+   }
+   offset+=2+length;
+  }
+ }catch(error){
+  return {width:0,height:0};
+ }
+
+ return {width:0,height:0};
+}
+
+function loadImage(src){
+ return new Promise((resolve,reject)=>{
+  const image=new Image();
+  image.onload=()=>resolve(image);
+  image.onerror=()=>reject(new Error("Lecture de l'image impossible."));
+  image.src=src;
+ });
+}
+
+function getOrientedCanvasSize(width,height,orientation){
+ const rotates=orientation>=5&&orientation<=8;
+ return {
+  width:rotates?height:width,
+  height:rotates?width:height
+ };
+}
+
+function applyExifTransform(ctx,width,height,orientation){
+ if(orientation===2){
+  ctx.transform(-1,0,0,1,width,0);
+ }else if(orientation===3){
+  ctx.transform(-1,0,0,-1,width,height);
+ }else if(orientation===4){
+  ctx.transform(1,0,0,-1,0,height);
+ }else if(orientation===5){
+  ctx.transform(0,1,1,0,0,0);
+ }else if(orientation===6){
+  ctx.transform(0,1,-1,0,height,0);
+ }else if(orientation===7){
+  ctx.transform(0,-1,-1,0,height,width);
+ }else if(orientation===8){
+  ctx.transform(0,-1,1,0,0,width);
+ }
+}
+
+async function normalizeImageBitmapForPdf(file){
+ if(typeof createImageBitmap!=='function'){
+  throw new Error('createImageBitmap indisponible.');
+ }
+ const bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});
+ const canvas=document.createElement('canvas');
+ canvas.width=bitmap.width;
+ canvas.height=bitmap.height;
+ const ctx=canvas.getContext('2d');
+ ctx.drawImage(bitmap,0,0);
+ if(typeof bitmap.close==='function'){
+  bitmap.close();
+ }
+ return canvas.toDataURL('image/jpeg',0.92);
+}
+
+async function normalizeDataUrlOrientation(src,orientation,metadata={}){
+ const image=await loadImage(src);
+ const width=image.naturalWidth||image.width;
+ const height=image.naturalHeight||image.height;
+ const browserAlreadyRotated=orientation>=5&&orientation<=8
+  && metadata.width===height
+  && metadata.height===width;
+ const appliedOrientation=browserAlreadyRotated?1:orientation;
+ const size=getOrientedCanvasSize(width,height,appliedOrientation);
+ const canvas=document.createElement('canvas');
+ canvas.width=size.width;
+ canvas.height=size.height;
+ const ctx=canvas.getContext('2d');
+ applyExifTransform(ctx,width,height,appliedOrientation);
+ ctx.drawImage(image,0,0,width,height);
+ return canvas.toDataURL('image/jpeg',0.92);
+}
+
+async function readPhotoForPdf(file){
+ const src=await readFileAsDataUrl(file);
+ const orientation=getExifOrientation(src);
+ const dimensions=getJpegDimensions(src);
+ if(orientation===1){
+  return src;
+ }
+
+ try{
+  return await normalizeImageBitmapForPdf(file);
+ }catch(error){
+  return normalizeDataUrlOrientation(src,orientation,dimensions);
+ }
+}
+
+photos.onchange=async e=>{
+ clearStatus();
+ try{
+  const nextImages=await Promise.all([...e.target.files].map(readPhotoForPdf));
+  images.push(...nextImages);
+  render();
+ }catch(error){
+  setStatus(error.message||"Lecture de l'image impossible.",'error');
+ }
 };
 
 function render(){
@@ -126,16 +334,12 @@ function hasExpenseSummaryChanges(){
   || description.value!==initialExpenseValues.description;
 }
 
-function loadImageDimensions(src){
- return new Promise((resolve,reject)=>{
-  const image=new Image();
-  image.onload=()=>resolve({
-   width:image.naturalWidth||image.width,
-   height:image.naturalHeight||image.height
-  });
-  image.onerror=()=>reject(new Error("Lecture de l'image impossible."));
-  image.src=src;
- });
+async function loadImageDimensions(src){
+ const image=await loadImage(src);
+ return {
+  width:image.naturalWidth||image.width,
+  height:image.naturalHeight||image.height
+ };
 }
 
 async function getReceiptImagePlacement(src,pageW,pageH){

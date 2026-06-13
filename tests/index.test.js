@@ -18,6 +18,20 @@ function createElement(value = "") {
 }
 
 function setupPdfSandbox() {
+  const canvas = {
+    width: 0,
+    height: 0,
+    getContext() {
+      return {
+        transform() {},
+        drawImage() {},
+      };
+    },
+    toDataURL() {
+      return `data:image/jpeg;w=${this.width};h=${this.height};base64,normalized`;
+    },
+  };
+
   const elements = {
     form: { reset() {}, onsubmit: null },
     name: createElement(),
@@ -81,9 +95,18 @@ function setupPdfSandbox() {
       getElementById(id) {
         return elements[id];
       },
+      createElement(tagName) {
+        if (tagName === "canvas") {
+          return canvas;
+        }
+        throw new Error(`Unexpected element: ${tagName}`);
+      },
     },
     window: {
       jspdf: { jsPDF: FakePDF },
+    },
+    atob(value) {
+      return Buffer.from(value, "base64").toString("binary");
     },
     FileReader: class {
       readAsDataURL(file) {
@@ -107,6 +130,26 @@ function setupPdfSandbox() {
 
   vm.runInNewContext(script, context);
   return { context, elements, getLastDoc: () => lastDoc };
+}
+
+function jpegDataUrlWithExifOrientation(orientation, width, height) {
+  const bytes = Buffer.from([
+    0xff, 0xd8,
+    0xff, 0xe1, 0x00, 0x22,
+    0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
+    0x4d, 0x4d, 0x00, 0x2a,
+    0x00, 0x00, 0x00, 0x08,
+    0x00, 0x01,
+    0x01, 0x12,
+    0x00, 0x03,
+    0x00, 0x00, 0x00, 0x01,
+    0x00, orientation,
+    0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0xff, 0xd9,
+  ]);
+
+  return `data:image/jpeg;w=${width};h=${height};base64,${bytes.toString("base64")}`;
 }
 
 test("form has an inline status message area", () => {
@@ -172,7 +215,7 @@ test("successful submit resets fields, photos, and preview for the next expense"
 test("PDF omits the expense summary page when only photos were added", async () => {
   const { context, elements, getLastDoc } = setupPdfSandbox();
 
-  elements.photos.onchange({
+  await elements.photos.onchange({
     target: {
       files: [{ dataUrl: "data:image/jpeg;base64,receipt" }],
     },
@@ -189,7 +232,7 @@ test("PDF omits the expense summary page when only photos were added", async () 
 test("PDF receipt images keep their original aspect ratio instead of stretching to A4", async () => {
   const { context, elements, getLastDoc } = setupPdfSandbox();
 
-  elements.photos.onchange({
+  await elements.photos.onchange({
     target: {
       files: [{ dataUrl: "data:image/jpeg;w=1000;h=500;base64,receipt" }],
     },
@@ -203,11 +246,39 @@ test("PDF receipt images keep their original aspect ratio instead of stretching 
   assert.equal(image.height, 105);
 });
 
+test("PDF receipt images honor phone EXIF orientation before placement", async () => {
+  const { context, elements, getLastDoc } = setupPdfSandbox();
+
+  await elements.photos.onchange({
+    target: {
+      files: [{ dataUrl: jpegDataUrlWithExifOrientation(6, 1000, 500) }],
+    },
+  });
+
+  await context.genPDF();
+
+  const image = getLastDoc().pages[0].find((entry) => entry.kind === "image");
+  assert.equal(image.width / image.height, 0.5);
+  assert.equal(image.width < image.height, true);
+});
+
+test("fallback image normalization does not double-rotate already oriented browser images", async () => {
+  const { context } = setupPdfSandbox();
+  const src = jpegDataUrlWithExifOrientation(6, 500, 1000);
+
+  const normalized = await context.normalizeDataUrlOrientation(src, 6, {
+    width: 1000,
+    height: 500,
+  });
+
+  assert.match(normalized, /w=500;h=1000/);
+});
+
 test("PDF includes the expense summary page when a non-photo field changed", async () => {
   const { context, elements, getLastDoc } = setupPdfSandbox();
 
   elements.description.value = "Dejeuner chantier";
-  elements.photos.onchange({
+  await elements.photos.onchange({
     target: {
       files: [{ dataUrl: "data:image/jpeg;base64,receipt" }],
     },
