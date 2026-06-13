@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Note de frais</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-[#f5f5f7] p-5">
+<form id="form" class="max-w-md mx-auto space-y-5">
+
+<img id="logo" src="logo.png" class="h-12 mx-auto" alt="Logo">
+<h1 class="text-3xl font-bold">Note de frais</h1>
+
+<label class="font-semibold" for="name">Prénom et NOM :</label>
+<input id="name" class="w-full p-4 rounded-2xl bg-white">
+
+<label class="font-semibold" for="payment">Mode de paiement :</label>
+<select id="payment" class="w-full p-4 rounded-2xl bg-white">
+<option value="" selected>Sélectionner</option>
+<option>CB-Benjamin</option>
+<option>CB-Armement - 5515</option>
+<option>CB-Armement</option>
+<option>CB-SUROIT</option>
+<option>CB-LE ROZEL</option>
+<option>CB-GOURY</option>
+<option>CB-LANDEMER</option>
+<option>CB-Perso</option>
+</select>
+
+<label class="font-semibold" for="object">Objet :</label>
+<select id="object" class="w-full p-4 rounded-2xl bg-white">
+<option value="" selected>Sélectionner</option>
+<option>GOURY</option>
+<option>LE ROZEL</option>
+<option>LANDEMER</option>
+<option>SUROIT</option>
+<option>Yard - LE HAVRE</option>
+<option>Armement - CHERBOURG</option>
+</select>
+
+<p class="text-sm">Si la facture n'est pas explicite, décrire la nature de la dépense.</p>
+<textarea id="description" class="w-full p-4 rounded-2xl bg-white"></textarea>
+
+<label class="font-semibold" for="photos">Ajout de photo(s) :</label>
+<input id="photos" type="file" multiple accept="image/*">
+<div id="preview" class="grid grid-cols-3 gap-2"></div>
+
+<button id="submit" type="submit" class="w-full py-4 rounded-2xl bg-black text-white disabled:opacity-60">Envoyer</button>
+<p id="status" role="status" aria-live="polite" class="hidden rounded-2xl p-4 text-sm font-semibold"></p>
+</form>
+
+<script>
+let images=[];
+const form=document.getElementById('form');
+const name=document.getElementById('name');
+const payment=document.getElementById('payment');
+const object=document.getElementById('object');
+const description=document.getElementById('description');
+const photos=document.getElementById('photos');
+const preview=document.getElementById('preview');
+const submit=document.getElementById('submit');
+const status=document.getElementById('status');
+const logo=document.getElementById('logo');
+const initialExpenseValues={
+ name:name.value,
+ payment:payment.value,
+ object:object.value,
+ description:description.value
+};
+
+function setStatus(message,type){
+ status.textContent=message;
+ status.className=`rounded-2xl p-4 text-sm font-semibold ${type==='success'?'bg-green-100 text-green-800':'bg-red-100 text-red-800'}`;
+}
+
+function clearStatus(){
+ status.textContent='';
+ status.className='hidden rounded-2xl p-4 text-sm font-semibold';
+}
+
+function readBlobAsBase64(blob){
+ return new Promise((resolve,reject)=>{
+  const r=new FileReader();
+  r.onloadend=()=>resolve(r.result.split(',')[1]);
+  r.onerror=()=>reject(new Error('Lecture du PDF impossible.'));
+  r.readAsDataURL(blob);
+ });
+}
+
+photos.onchange=e=>{
+ clearStatus();
+ [...e.target.files].forEach(f=>{
+  const r=new FileReader();
+  r.onload=x=>{images.push(x.target.result);render();};
+  r.readAsDataURL(f);
+ })
+};
+
+function render(){
+ preview.innerHTML='';
+ images.forEach((i,idx)=>{
+  preview.innerHTML+=`<div class="relative"><img src="${i}" class="h-24 w-full object-cover rounded-xl" alt="Facture ${idx+1}"><button type="button" onclick="del(${idx})" class="absolute top-1 right-1 bg-white px-1">x</button></div>`;
+ });
+}
+
+function del(i){ images.splice(i,1); render(); }
+
+function setNavy(doc){
+ doc.setTextColor(0,31,84);
+}
+
+function setBlue(doc){
+ doc.setTextColor(0,96,200);
+}
+
+function pdfText(value){
+ return (value||'').toString().normalize('NFD').replace(/[\u0300-\u036f]+/g,'');
+}
+
+function hasExpenseSummaryChanges(){
+ return name.value!==initialExpenseValues.name
+  || payment.value!==initialExpenseValues.payment
+  || object.value!==initialExpenseValues.object
+  || description.value!==initialExpenseValues.description;
+}
+
+function drawExpenseIcon(doc,type,x,y){
+ doc.setDrawColor(0,31,84);
+ doc.setFillColor(0,31,84);
+ doc.setLineWidth(0.8);
+
+ if(type==='person'){
+  doc.circle(x+4,y-4,2.5,'F');
+  doc.roundedRect(x,y,8,5,2,2,'F');
+  return;
+ }
+
+ if(type==='card'){
+  doc.roundedRect(x,y-8,11,7,1,1,'F');
+  doc.setDrawColor(255,255,255);
+  doc.setLineWidth(0.7);
+  doc.line(x+1.5,y-5.7,x+9.5,y-5.7);
+  doc.line(x+2,y-2.5,x+4,y-2.5);
+  doc.line(x+5,y-2.5,x+7,y-2.5);
+  return;
+ }
+
+ if(type==='clipboard'){
+  doc.roundedRect(x+1,y-9,9,12,1,1);
+  doc.roundedRect(x+3.2,y-11,4.6,3,1,1);
+  doc.line(x+3,y-4.5,x+8,y-4.5);
+  doc.line(x+3,y-1.5,x+8,y-1.5);
+  return;
+ }
+
+ doc.roundedRect(x+1,y-9,9,12,0.5,0.5);
+ doc.line(x+7,y-9,x+10,y-6);
+ doc.line(x+7,y-9,x+7,y-6);
+ doc.line(x+7,y-6,x+10,y-6);
+ doc.line(x+3,y-4.5,x+8,y-4.5);
+ doc.line(x+3,y-1.5,x+8,y-1.5);
+}
+
+function drawExpenseRow(doc,rowY,label,value,type){
+ drawExpenseIcon(doc,type,20,rowY);
+ setNavy(doc);
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(12);
+ doc.text(label,42,rowY-2);
+
+ doc.setDrawColor(170,185,210);
+ doc.setLineWidth(0.35);
+ doc.line(84,rowY+2,194,rowY+2);
+
+ doc.setFont('helvetica','normal');
+ doc.setFontSize(11);
+ const text=pdfText(value);
+ const lines=doc.splitTextToSize(text,104);
+ doc.text(lines,86,rowY-2);
+}
+
+function drawExpenseSummaryPage(doc){
+ const navy=[0,31,84];
+ const lightLine=[165,185,220];
+ const pageW=doc.internal.pageSize.getWidth();
+
+ doc.setFillColor(255,255,255);
+ doc.rect(0,0,pageW,doc.internal.pageSize.getHeight(),'F');
+
+ if(logo.complete){
+  try{ doc.addImage(logo,'PNG',16,14,25,25); }catch(error){}
+ }
+
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(30);
+ doc.setTextColor(0,0,0);
+ doc.text('BBTM',50,32);
+
+ doc.setDrawColor(...navy);
+ doc.setLineWidth(0.5);
+ doc.line(132,14,132,45);
+
+ setNavy(doc);
+ doc.setFontSize(10);
+ doc.text('BENJAMIN BON TRAVAUX MARITIMES',140,23);
+ doc.setFont('helvetica','normal');
+ doc.text('15 impasse du Pou',140,30);
+ doc.text('50340 LE ROZEL',140,37);
+ doc.text('France',140,44);
+
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(26);
+ doc.text('NOTE DE FRAIS',16,76);
+ setBlue(doc);
+ doc.setLineWidth(1.4);
+ doc.line(16,84,37,84);
+
+ doc.setDrawColor(...lightLine);
+ doc.setLineWidth(0.35);
+ doc.roundedRect(16,92,178,116,3,3);
+ doc.line(80,99,80,202);
+
+ let rowY=112;
+ drawExpenseRow(doc,rowY,'Collaborateur',name.value,'person');
+ rowY+=27;
+ drawExpenseRow(doc,rowY,'Mode de paiement',payment.value,'card');
+ rowY+=27;
+ drawExpenseRow(doc,rowY,'Objet',object.value,'clipboard');
+ rowY+=27;
+ drawExpenseRow(doc,rowY,'Description',description.value,'document');
+}
+
+async function genPDF(){
+ const {jsPDF}=window.jspdf;
+ const doc=new jsPDF();
+ const includeSummary=hasExpenseSummaryChanges();
+ if(includeSummary){
+  drawExpenseSummaryPage(doc);
+ }
+ const w=doc.internal.pageSize.getWidth();
+ const h=doc.internal.pageSize.getHeight();
+ images.forEach((img,index)=>{
+  if(includeSummary||index>0){
+   doc.addPage();
+  }
+  doc.addImage(img,'JPEG',0,0,w,h);
+ });
+ return doc.output('blob');
+}
+
+form.onsubmit=async(e)=>{
+ e.preventDefault();
+ clearStatus();
+ submit.disabled=true;
+ submit.textContent='Envoi en cours...';
+
+ try{
+  const blob=await genPDF();
+  const base64=await readBlobAsBase64(blob);
+  const response=await fetch('/.netlify/functions/send',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({pdfBase64:base64,name:name.value||''})
+  });
+  const result=await response.json().catch(()=>({ok:false,error:"Réponse d'envoi invalide."}));
+
+  if(!response.ok||!result.ok){
+   throw new Error(result.error||"Échec de l'envoi du PDF.");
+  }
+
+  form.reset();
+  images=[];
+  photos.value='';
+  render();
+  setStatus('PDF envoyé avec succès. Vous pouvez saisir une nouvelle note de frais.','success');
+ }catch(error){
+  setStatus(error.message||"Échec de l'envoi du PDF.",'error');
+ }finally{
+  submit.disabled=false;
+  submit.textContent='Envoyer';
+ }
+};
+</script>
+</body>
+</html>
