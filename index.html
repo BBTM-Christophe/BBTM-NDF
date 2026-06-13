@@ -126,6 +126,35 @@ function hasExpenseSummaryChanges(){
   || description.value!==initialExpenseValues.description;
 }
 
+function loadImageDimensions(src){
+ return new Promise((resolve,reject)=>{
+  const image=new Image();
+  image.onload=()=>resolve({
+   width:image.naturalWidth||image.width,
+   height:image.naturalHeight||image.height
+  });
+  image.onerror=()=>reject(new Error("Lecture de l'image impossible."));
+  image.src=src;
+ });
+}
+
+async function getReceiptImagePlacement(src,pageW,pageH){
+ const dimensions=await loadImageDimensions(src);
+ const pxToMm=25.4/96;
+ let width=dimensions.width*pxToMm;
+ let height=dimensions.height*pxToMm;
+ const scale=Math.min(1,pageW/width,pageH/height);
+ width*=scale;
+ height*=scale;
+
+ return {
+  x:(pageW-width)/2,
+  y:(pageH-height)/2,
+  width,
+  height
+ };
+}
+
 function drawExpenseIcon(doc,type,x,y){
  doc.setDrawColor(0,31,84);
  doc.setFillColor(0,31,84);
@@ -241,12 +270,13 @@ async function genPDF(){
  }
  const w=doc.internal.pageSize.getWidth();
  const h=doc.internal.pageSize.getHeight();
- images.forEach((img,index)=>{
+ for(const [index,img] of images.entries()){
   if(includeSummary||index>0){
    doc.addPage();
   }
-  doc.addImage(img,'JPEG',0,0,w,h);
- });
+  const placement=await getReceiptImagePlacement(img,w,h);
+  doc.addImage(img,'JPEG',placement.x,placement.y,placement.width,placement.height);
+ }
  return doc.output('blob');
 }
 

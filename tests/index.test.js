@@ -90,6 +90,15 @@ function setupPdfSandbox() {
         this.onload({ target: { result: file.dataUrl } });
       }
     },
+    Image: class {
+      set src(value) {
+        const width = value.match(/w=(\d+)/)?.[1] || "1000";
+        const height = value.match(/h=(\d+)/)?.[1] || "500";
+        this.naturalWidth = Number(width);
+        this.naturalHeight = Number(height);
+        this.onload?.();
+      }
+    },
     fetch() {
       throw new Error("fetch should not be called in PDF generation tests");
     },
@@ -175,6 +184,23 @@ test("PDF omits the expense summary page when only photos were added", async () 
   assert.equal(doc.pages.length, 1);
   assert.equal(doc.pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), false);
   assert.equal(doc.pages[0].filter((entry) => entry.kind === "image").length, 1);
+});
+
+test("PDF receipt images keep their original aspect ratio instead of stretching to A4", async () => {
+  const { context, elements, getLastDoc } = setupPdfSandbox();
+
+  elements.photos.onchange({
+    target: {
+      files: [{ dataUrl: "data:image/jpeg;w=1000;h=500;base64,receipt" }],
+    },
+  });
+
+  await context.genPDF();
+
+  const image = getLastDoc().pages[0].find((entry) => entry.kind === "image");
+  assert.equal(image.width / image.height, 2);
+  assert.equal(image.width, 210);
+  assert.equal(image.height, 105);
 });
 
 test("PDF includes the expense summary page when a non-photo field changed", async () => {
