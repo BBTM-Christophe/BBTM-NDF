@@ -721,7 +721,7 @@ function drawTextCell(doc,text,x,y,width,height,options={}){
  doc.setFont('helvetica',options.bold?'bold':'normal');
  doc.setFontSize(options.size||8);
  const lines=doc.splitTextToSize(pdfText(text),width-4);
- const textX=options.align==='right'?x+width-2:x+2;
+ const textX=options.align==='right'?x+width-2:options.align==='center'?x+width/2:x+2;
  const textY=y+Math.min(height-2,5);
  doc.text(lines.length===1?lines[0]:lines,textX,textY,{align:options.align||'left'});
 }

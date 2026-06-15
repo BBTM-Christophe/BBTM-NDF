@@ -116,8 +116,8 @@ function setupPdfSandbox() {
       this.pages.at(-1).push({ kind: "image", image, type, x, y, width, height });
     }
 
-    text(value) {
-      this.pages.at(-1).push({ kind: "text", value });
+    text(value, x, y, options) {
+      this.pages.at(-1).push({ kind: "text", value, x, y, options });
     }
 
     output() {
@@ -469,6 +469,24 @@ test("PDF places receipts before the mileage reimbursement summary page", async 
   assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
   assert.equal(pages[1].some((entry) => entry.value === "INDEMNITES KILOMETRIQUES"), true);
   assert.equal(pages[1].some((entry) => entry.value === "100,00"), true);
+});
+
+test("mileage PDF centers table headers within their cells", async () => {
+  const { context, getLastDoc } = setupPdfSandbox();
+
+  context.setFormMode("mileage");
+  await context.createMileagePdfBlob();
+
+  const page = getLastDoc().pages[0];
+  const dateHeader = page.find(
+    (entry) => entry.kind === "text" && entry.value === "Date" && entry.options?.align === "center"
+  );
+  const totalLabel = page.find(
+    (entry) => entry.kind === "text" && entry.value === "TOTAL" && entry.options?.align === "center"
+  );
+
+  assert.equal(dateHeader.x, 23);
+  assert.equal(totalLabel.x, 96.5);
 });
 
 test("PDF receipt files are merged into the generated note instead of rendered as images", async () => {
