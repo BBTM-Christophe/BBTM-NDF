@@ -9,10 +9,17 @@
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body class="bg-[#f5f5f7] p-5">
-<form id="form" class="max-w-md mx-auto space-y-5">
+<form id="form" class="mx-auto max-w-5xl space-y-5">
 
 <img id="logo" src="logo.png" class="h-12 mx-auto" alt="Logo">
-<h1 class="text-3xl font-bold">Note de frais</h1>
+<h1 id="formTitle" class="text-center text-3xl font-bold">Note de frais</h1>
+
+<div class="mx-auto grid max-w-md grid-cols-2 rounded-2xl bg-white p-1 shadow-sm">
+<button id="modeExpense" type="button" class="rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white">Note de frais</button>
+<button id="modeMileage" type="button" class="rounded-xl px-3 py-3 text-sm font-semibold text-slate-700">Indemnités Kilométriques</button>
+</div>
+
+<section id="expenseFields" class="mx-auto max-w-md space-y-5">
 
 <label class="font-semibold" for="name">Prénom et NOM :</label>
 <input id="name" class="w-full p-4 rounded-2xl bg-white">
@@ -43,10 +50,66 @@
 
 <p class="text-sm">Si la facture n'est pas explicite, décrire la nature de la dépense.</p>
 <textarea id="description" class="w-full p-4 rounded-2xl bg-white"></textarea>
+</section>
 
+<section id="mileageFields" class="hidden space-y-5">
+<div class="rounded-2xl bg-white p-4 shadow-sm">
+<h2 class="mb-3 text-lg font-bold">Demandeur / Date</h2>
+<div class="grid gap-4 md:grid-cols-3">
+<label class="space-y-2 font-semibold" for="ikName"><span>Prénom et NOM</span><input id="ikName" class="w-full rounded-xl bg-[#f5f5f7] p-3 font-normal"></label>
+<label class="space-y-2 font-semibold" for="ikFunction"><span>Fonction</span><input id="ikFunction" class="w-full rounded-xl bg-[#f5f5f7] p-3 font-normal"></label>
+<label class="space-y-2 font-semibold" for="ikPeriod"><span>Date ou période</span><input id="ikPeriod" class="w-full rounded-xl bg-[#f5f5f7] p-3 font-normal"></label>
+</div>
+</div>
+
+<div class="rounded-2xl bg-white p-4 shadow-sm">
+<h2 class="mb-3 text-lg font-bold">Véhicule</h2>
+<div class="grid gap-4 md:grid-cols-2">
+<label class="space-y-2 font-semibold" for="vehicleModel"><span>Marque / Modèle</span><input id="vehicleModel" class="w-full rounded-xl bg-[#f5f5f7] p-3 font-normal"></label>
+<label class="space-y-2 font-semibold" for="fiscalPower"><span>Puissance Fiscale</span><input id="fiscalPower" class="w-full rounded-xl bg-[#f5f5f7] p-3 font-normal"></label>
+</div>
+<fieldset class="mt-4">
+<legend class="font-semibold">Type de carburant</legend>
+<div class="mt-2 grid gap-3 sm:grid-cols-4">
+<label class="flex items-center gap-2 rounded-xl bg-[#f5f5f7] p-3"><input id="fuelEssence" type="checkbox" class="h-4 w-4"> Essence</label>
+<label class="flex items-center gap-2 rounded-xl bg-[#f5f5f7] p-3"><input id="fuelDiesel" type="checkbox" class="h-4 w-4"> Diesel</label>
+<label class="flex items-center gap-2 rounded-xl bg-[#f5f5f7] p-3"><input id="fuelElectric" type="checkbox" class="h-4 w-4"> Électrique</label>
+<label class="flex items-center gap-2 rounded-xl bg-[#f5f5f7] p-3"><input id="fuelHybrid" type="checkbox" class="h-4 w-4"> Hybride</label>
+</div>
+</fieldset>
+</div>
+
+<div class="overflow-x-auto rounded-2xl bg-white p-4 shadow-sm">
+<h2 class="mb-3 text-lg font-bold">Détail du ou des déplacements</h2>
+<table class="w-full min-w-[900px] border-collapse text-sm">
+<thead>
+<tr class="bg-[#17677f] text-white">
+<th class="border border-slate-300 p-2">Date</th>
+<th class="border border-slate-300 p-2">Trajet (Départ → Arrivée)</th>
+<th class="border border-slate-300 p-2">Motif</th>
+<th class="border border-slate-300 p-2">Km parcourus</th>
+<th class="border border-slate-300 p-2">Barème</th>
+<th class="border border-slate-300 p-2">Montant (€)</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate0" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute0" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason0" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm0" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate0" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount0" class="w-full p-2 text-right"></td></tr>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate1" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute1" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason1" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm1" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate1" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount1" class="w-full p-2 text-right"></td></tr>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate2" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute2" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason2" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm2" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate2" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount2" class="w-full p-2 text-right"></td></tr>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate3" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute3" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason3" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm3" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate3" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount3" class="w-full p-2 text-right"></td></tr>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate4" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute4" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason4" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm4" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate4" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount4" class="w-full p-2 text-right"></td></tr>
+<tr><td class="border border-slate-300 p-1"><input id="mileageDate5" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRoute5" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageReason5" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageKm5" type="number" min="0" step="1" inputmode="numeric" class="w-full p-2"></td><td class="border border-slate-300 p-1"><input id="mileageRate5" readonly class="w-full bg-slate-100 p-2 text-center"></td><td class="border border-slate-300 p-1"><input id="mileageAmount5" class="w-full p-2 text-right"></td></tr>
+<tr><td colspan="5" class="border border-slate-300 p-3 text-right font-bold">TOTAL</td><td class="border border-slate-300 p-1"><input id="mileageTotal" readonly class="w-full bg-slate-100 p-2 text-right font-bold"></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section class="mx-auto max-w-md space-y-3">
 <label class="font-semibold" for="photos">Ajout de justificatif(s) :</label>
 <input id="photos" type="file" multiple accept="image/*,application/pdf">
 <div id="preview" class="grid grid-cols-3 gap-2"></div>
+</section>
 
 <button id="submit" type="submit" class="w-full py-4 rounded-2xl bg-black text-white disabled:opacity-60">Envoyer</button>
 <p id="status" role="status" aria-live="polite" class="hidden rounded-2xl p-4 text-sm font-semibold"></p>
@@ -64,6 +127,31 @@ const preview=document.getElementById('preview');
 const submit=document.getElementById('submit');
 const status=document.getElementById('status');
 const logo=document.getElementById('logo');
+const formTitle=document.getElementById('formTitle');
+const modeExpense=document.getElementById('modeExpense');
+const modeMileage=document.getElementById('modeMileage');
+const expenseFields=document.getElementById('expenseFields');
+const mileageFields=document.getElementById('mileageFields');
+const ikName=document.getElementById('ikName');
+const ikFunction=document.getElementById('ikFunction');
+const ikPeriod=document.getElementById('ikPeriod');
+const vehicleModel=document.getElementById('vehicleModel');
+const fiscalPower=document.getElementById('fiscalPower');
+const fuelEssence=document.getElementById('fuelEssence');
+const fuelDiesel=document.getElementById('fuelDiesel');
+const fuelElectric=document.getElementById('fuelElectric');
+const fuelHybrid=document.getElementById('fuelHybrid');
+const mileageTotal=document.getElementById('mileageTotal');
+const mileageRows=Array.from({length:6},(_,index)=>({
+ date:document.getElementById(`mileageDate${index}`),
+ route:document.getElementById(`mileageRoute${index}`),
+ reason:document.getElementById(`mileageReason${index}`),
+ km:document.getElementById(`mileageKm${index}`),
+ rate:document.getElementById(`mileageRate${index}`),
+ amount:document.getElementById(`mileageAmount${index}`)
+}));
+const MILEAGE_RATE=0.606;
+let activeMode='expense';
 const initialExpenseValues={
  name:name.value,
  payment:payment.value,
@@ -79,6 +167,67 @@ function setStatus(message,type){
 function clearStatus(){
  status.textContent='';
  status.className='hidden rounded-2xl p-4 text-sm font-semibold';
+}
+
+function parseFrenchNumber(value){
+ const normalized=(value||'').toString().replace(/\s/g,'').replace(',','.');
+ const parsed=Number.parseFloat(normalized);
+ return Number.isFinite(parsed)?parsed:0;
+}
+
+function formatMoney(value){
+ return value.toFixed(2).replace('.',',');
+}
+
+function setFormMode(mode){
+ activeMode=mode==='mileage'?'mileage':'expense';
+ const isMileage=activeMode==='mileage';
+ formTitle.textContent=isMileage?'Indemnités Kilométriques':'Note de frais';
+ expenseFields.className=isMileage?'hidden':'mx-auto max-w-md space-y-5';
+ mileageFields.className=isMileage?'space-y-5':'hidden space-y-5';
+ modeExpense.className=isMileage
+  ?'rounded-xl px-3 py-3 text-sm font-semibold text-slate-700'
+  :'rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white';
+ modeMileage.className=isMileage
+  ?'rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white'
+  :'rounded-xl px-3 py-3 text-sm font-semibold text-slate-700';
+ updateMileageCalculations();
+}
+
+function updateMileageCalculations(){
+ const isElectric=!!fuelElectric.checked;
+ let total=0;
+
+ mileageRows.forEach(row=>{
+  row.rate.value=isElectric?'-':'0,606';
+  row.amount.readOnly=!isElectric;
+
+  if(isElectric){
+   const manualAmount=parseFrenchNumber(row.amount.value);
+   if(manualAmount>0){
+    total+=manualAmount;
+   }
+   return;
+  }
+
+  const km=Math.max(0,Number.parseInt(row.km.value,10)||0);
+  if(km>0){
+   const amount=Math.min(km*MILEAGE_RATE,100);
+   row.amount.value=formatMoney(amount);
+   total+=amount;
+  }else{
+   row.amount.value='';
+  }
+ });
+
+ mileageTotal.value=total>0?formatMoney(total):'';
+}
+
+function clearMileageAmounts(){
+ mileageRows.forEach(row=>{
+  row.amount.value='';
+ });
+ mileageTotal.value='';
 }
 
 function readBlobAsBase64(blob){
@@ -325,6 +474,23 @@ async function readReceiptForPdf(file){
  return readPhotoForPdf(file);
 }
 
+modeExpense.onclick=()=>setFormMode('expense');
+modeMileage.onclick=()=>setFormMode('mileage');
+fuelElectric.onchange=()=>{
+ if(fuelElectric.checked){
+  clearMileageAmounts();
+ }
+ updateMileageCalculations();
+};
+[fuelEssence,fuelDiesel,fuelHybrid].forEach(input=>{
+ input.onchange=updateMileageCalculations;
+});
+mileageRows.forEach(row=>{
+ row.km.oninput=updateMileageCalculations;
+ row.amount.oninput=updateMileageCalculations;
+});
+setFormMode('expense');
+
 photos.onchange=async e=>{
  clearStatus();
  try{
@@ -529,10 +695,133 @@ function drawExpenseSummaryPage(doc){
  drawExpenseRow(doc,rowY,'Description',description.value,'document');
 }
 
+function getFuelLabel(){
+ const selected=[];
+ if(fuelEssence.checked){ selected.push('Essence'); }
+ if(fuelDiesel.checked){ selected.push('Diesel'); }
+ if(fuelElectric.checked){ selected.push('Electrique'); }
+ if(fuelHybrid.checked){ selected.push('Hybride'); }
+ return selected.join(' / ');
+}
+
+function getMileageSummaryRows(){
+ updateMileageCalculations();
+ return mileageRows.map(row=>({
+  date:row.date.value,
+  route:row.route.value,
+  reason:row.reason.value,
+  km:row.km.value,
+  rate:row.rate.value,
+  amount:row.amount.value
+ })).filter(row=>row.date||row.route||row.reason||row.km||row.amount);
+}
+
+function drawTextCell(doc,text,x,y,width,height,options={}){
+ doc.rect(x,y,width,height);
+ doc.setFont('helvetica',options.bold?'bold':'normal');
+ doc.setFontSize(options.size||8);
+ const lines=doc.splitTextToSize(pdfText(text),width-4);
+ const textX=options.align==='right'?x+width-2:x+2;
+ const textY=y+Math.min(height-2,5);
+ doc.text(lines.length===1?lines[0]:lines,textX,textY,{align:options.align||'left'});
+}
+
+function drawMileageSummaryPage(doc){
+ const pageW=doc.internal.pageSize.getWidth();
+ const pageH=doc.internal.pageSize.getHeight();
+ const teal=[23,103,127];
+
+ doc.setFillColor(255,255,255);
+ doc.rect(0,0,pageW,pageH,'F');
+ doc.setDrawColor(0,0,0);
+ doc.setLineWidth(0.25);
+
+ if(logo.complete){
+  try{ doc.addImage(logo,'PNG',12,10,24,24); }catch(error){}
+ }
+
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(16);
+ doc.setTextColor(145,178,198);
+ doc.text('Note de frais',pageW/2,22,{align:'center'});
+ doc.setFontSize(10);
+ doc.text('INDEMNITES KILOMETRIQUES',pageW/2,36,{align:'center'});
+ doc.setTextColor(0,0,0);
+
+ let y=48;
+ drawTextCell(doc,'Prenom et NOM : '+ikName.value,12,y,142,7,{bold:true,size:8});
+ drawTextCell(doc,'',154,y,44,21,{size:8});
+ y+=7;
+ drawTextCell(doc,'Fonction : '+ikFunction.value,12,y,142,7,{bold:true,size:8});
+ y+=7;
+ drawTextCell(doc,'Date ou periode : '+ikPeriod.value,12,y,142,7,{bold:true,size:8});
+ y+=7;
+
+ doc.setFillColor(...teal);
+ doc.rect(12,y,186,7,'F');
+ doc.setTextColor(255,255,255);
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(8);
+ doc.text('Vehicule utilise',105,y+4.8,{align:'center'});
+ doc.setTextColor(0,0,0);
+ y+=7;
+ drawTextCell(doc,'Marque / Modele : '+vehicleModel.value,12,y,186,7,{bold:true,size:8});
+ y+=7;
+ drawTextCell(doc,'Puissance fiscale : '+fiscalPower.value,12,y,186,7,{bold:true,size:8});
+ y+=7;
+ drawTextCell(doc,'Type de carburant : '+getFuelLabel(),12,y,186,7,{bold:true,size:8});
+
+ y+=14;
+ doc.setFillColor(...teal);
+ doc.rect(12,y,186,7,'F');
+ doc.setTextColor(255,255,255);
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(8);
+ doc.text('Detail du ou des deplacements',105,y+4.8,{align:'center'});
+ doc.setTextColor(0,0,0);
+ y+=7;
+
+ const widths=[22,61,45,20,21,17];
+ const headers=['Date','Trajet (Depart -> Arrivee)','Motif du deplacement','Km parcourus','Bareme','Montant'];
+ let x=12;
+ headers.forEach((header,index)=>{
+  drawTextCell(doc,header,x,y,widths[index],13,{bold:true,size:7,align:'center'});
+  x+=widths[index];
+ });
+ y+=13;
+
+ const rows=getMileageSummaryRows();
+ for(let index=0;index<6;index+=1){
+  const row=rows[index]||{};
+  x=12;
+  [row.date,row.route,row.reason,row.km,row.rate,row.amount].forEach((value,col)=>{
+   drawTextCell(doc,value||'',x,y,widths[col],8,{size:7,align:col>=3?'center':'left'});
+   x+=widths[col];
+  });
+  y+=8;
+ }
+
+ drawTextCell(doc,'TOTAL',12,y,169,8,{bold:true,size:8,align:'center'});
+ drawTextCell(doc,mileageTotal.value,181,y,17,8,{bold:true,size:8,align:'right'});
+
+ doc.setTextColor(255,0,0);
+ doc.setFont('helvetica','bold');
+ doc.setFontSize(8);
+ doc.text('Joindre les justificatifs a la demande',16,y+18);
+ doc.setTextColor(0,0,0);
+}
+
 async function createSummaryPdfBlob(){
  const {jsPDF}=window.jspdf;
  const doc=new jsPDF();
  drawExpenseSummaryPage(doc);
+ return doc.output('blob');
+}
+
+async function createMileagePdfBlob(){
+ const {jsPDF}=window.jspdf;
+ const doc=new jsPDF();
+ drawMileageSummaryPage(doc);
  return doc.output('blob');
 }
 
@@ -544,6 +833,18 @@ async function createImagePdfBlob(src){
  const placement=await getReceiptImagePlacement(src,w,h);
  doc.addImage(src,getImageFormat(src),placement.x,placement.y,placement.width,placement.height);
  return doc.output('blob');
+}
+
+async function createReceiptPdfBlobs(){
+ const blobs=[];
+ for(const receipt of images){
+  if(receipt.type==='pdf'){
+   blobs.push(dataUrlToBlob(receipt.dataUrl,'application/pdf'));
+  }else{
+   blobs.push(await createImagePdfBlob(receipt.dataUrl));
+  }
+ }
+ return blobs;
 }
 
 async function mergePdfBlobs(blobs){
@@ -565,16 +866,11 @@ async function mergePdfBlobs(blobs){
 }
 
 async function genPDF(){
- const blobs=[];
- if(hasExpenseSummaryChanges()){
+ const blobs=await createReceiptPdfBlobs();
+ if(activeMode==='mileage'){
+  blobs.push(await createMileagePdfBlob());
+ }else if(hasExpenseSummaryChanges()){
   blobs.push(await createSummaryPdfBlob());
- }
- for(const receipt of images){
-  if(receipt.type==='pdf'){
-   blobs.push(dataUrlToBlob(receipt.dataUrl,'application/pdf'));
-  }else{
-   blobs.push(await createImagePdfBlob(receipt.dataUrl));
-  }
  }
  if(!blobs.length){
   const {jsPDF}=window.jspdf;
@@ -595,7 +891,7 @@ form.onsubmit=async(e)=>{
   const response=await fetch('/.netlify/functions/send',{
    method:'POST',
    headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({pdfBase64:base64,name:name.value||''})
+   body:JSON.stringify({pdfBase64:base64,name:(activeMode==='mileage'?ikName.value:name.value)||''})
   });
   const result=await response.json().catch(()=>({ok:false,error:"Réponse d'envoi invalide."}));
 
@@ -607,6 +903,7 @@ form.onsubmit=async(e)=>{
   images=[];
   photos.value='';
   render();
+  updateMileageCalculations();
   setStatus('PDF envoyé avec succès. Vous pouvez saisir une nouvelle note de frais.','success');
  }catch(error){
   setStatus(error.message||"Échec de l'envoi du PDF.",'error');

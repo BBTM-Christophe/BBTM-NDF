@@ -10,10 +10,14 @@ const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
 function createElement(value = "") {
   return {
     value,
+    checked: false,
+    disabled: false,
+    readOnly: false,
     textContent: "",
     className: "",
     innerHTML: "",
     complete: false,
+    addEventListener() {},
   };
 }
 
@@ -55,16 +59,40 @@ function setupPdfSandbox() {
 
   const elements = {
     form: { reset() {}, onsubmit: null },
+    formTitle: createElement(),
+    modeExpense: createElement(),
+    modeMileage: createElement(),
+    expenseFields: createElement(),
+    mileageFields: createElement(),
     name: createElement(),
     payment: createElement(),
     object: createElement(),
     description: createElement(),
+    ikName: createElement(),
+    ikFunction: createElement(),
+    ikPeriod: createElement(),
+    vehicleModel: createElement(),
+    fiscalPower: createElement(),
+    fuelEssence: createElement(),
+    fuelDiesel: createElement(),
+    fuelElectric: createElement(),
+    fuelHybrid: createElement(),
+    mileageTotal: createElement(),
     photos: createElement(),
     preview: createElement(),
     submit: createElement("Envoyer"),
     status: createElement(),
     logo: createElement(),
   };
+
+  for (let index = 0; index < 6; index += 1) {
+    elements[`mileageDate${index}`] = createElement();
+    elements[`mileageRoute${index}`] = createElement();
+    elements[`mileageReason${index}`] = createElement();
+    elements[`mileageKm${index}`] = createElement();
+    elements[`mileageRate${index}`] = createElement();
+    elements[`mileageAmount${index}`] = createElement();
+  }
 
   let lastDoc;
 
@@ -266,6 +294,74 @@ test("file input accepts photos and PDF receipts", () => {
   assert.match(html, /accept=["']image\/\*,application\/pdf["']/);
 });
 
+test("form exposes a switch between expense and mileage reimbursement modes", () => {
+  assert.match(html, /id=["']modeExpense["']/);
+  assert.match(html, /id=["']modeMileage["']/);
+  assert.match(html, /id=["']expenseFields["']/);
+  assert.match(html, /id=["']mileageFields["']/);
+  assert.match(html, /Indemnit(?:\u00e9|e)s Kilom(?:\u00e9|e)triques/);
+});
+
+test("mileage reimbursement fields include vehicle, fuel, six detail rows and attachment area", () => {
+  assert.match(html, /id=["']ikName["']/);
+  assert.match(html, /id=["']ikFunction["']/);
+  assert.match(html, /id=["']ikPeriod["']/);
+  assert.match(html, /id=["']vehicleModel["']/);
+  assert.match(html, /id=["']fiscalPower["']/);
+  assert.match(html, /id=["']fuelEssence["']/);
+  assert.match(html, /id=["']fuelDiesel["']/);
+  assert.match(html, /id=["']fuelElectric["']/);
+  assert.match(html, /id=["']fuelHybrid["']/);
+  assert.match(html, /id=["']mileageKm5["']/);
+  assert.match(html, /id=["']mileageTotal["']/);
+  assert.match(html, /id=["']photos["']/);
+});
+
+test("mileage rows calculate rate, capped amount and total for thermal vehicles", () => {
+  const { context, elements } = setupPdfSandbox();
+
+  elements.mileageKm0.value = "120";
+  elements.mileageKm1.value = "200";
+
+  context.updateMileageCalculations();
+
+  assert.equal(elements.mileageRate0.value, "0,606");
+  assert.equal(elements.mileageAmount0.value, "72,72");
+  assert.equal(elements.mileageAmount1.value, "100,00");
+  assert.equal(elements.mileageTotal.value, "172,72");
+});
+
+test("electric mileage rows use manual amounts and display a dash for the rate", () => {
+  const { context, elements } = setupPdfSandbox();
+
+  elements.fuelElectric.checked = true;
+  elements.mileageKm0.value = "120";
+  elements.mileageAmount0.value = "42,50";
+
+  context.updateMileageCalculations();
+
+  assert.equal(elements.mileageRate0.value, "-");
+  assert.equal(elements.mileageAmount0.value, "42,50");
+  assert.equal(elements.mileageAmount0.readOnly, false);
+  assert.equal(elements.mileageTotal.value, "42,50");
+});
+
+test("switching to electric clears previously calculated thermal amounts", () => {
+  const { context, elements } = setupPdfSandbox();
+
+  elements.mileageKm0.value = "120";
+  elements.mileageKm1.value = "200";
+  context.updateMileageCalculations();
+
+  elements.fuelElectric.checked = true;
+  elements.fuelElectric.onchange();
+
+  assert.equal(elements.mileageRate0.value, "-");
+  assert.equal(elements.mileageAmount0.value, "");
+  assert.equal(elements.mileageAmount1.value, "");
+  assert.equal(elements.mileageTotal.value, "");
+});
+
 test("PDF omits the expense summary page when only photos were added", async () => {
   const { context, elements, getBlobPages } = setupPdfSandbox();
 
@@ -328,7 +424,7 @@ test("fallback image normalization does not double-rotate already oriented brows
   assert.match(normalized, /w=500;h=1000/);
 });
 
-test("PDF includes the expense summary page when a non-photo field changed", async () => {
+test("PDF places receipts before the expense summary page when a non-photo field changed", async () => {
   const { context, elements, getBlobPages } = setupPdfSandbox();
 
   elements.description.value = "Dejeuner chantier";
@@ -342,8 +438,37 @@ test("PDF includes the expense summary page when a non-photo field changed", asy
 
   const pages = await getBlobPages(blob);
   assert.equal(pages.length, 2);
-  assert.equal(pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), true);
-  assert.equal(pages[1].filter((entry) => entry.kind === "image").length, 1);
+  assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
+  assert.equal(pages[1].some((entry) => entry.value === "NOTE DE FRAIS"), true);
+});
+
+test("PDF places receipts before the mileage reimbursement summary page", async () => {
+  const { context, elements, getBlobPages } = setupPdfSandbox();
+
+  context.setFormMode("mileage");
+  elements.ikName.value = "Benjamin BON";
+  elements.ikFunction.value = "Chef de projet";
+  elements.ikPeriod.value = "Juin 2026";
+  elements.vehicleModel.value = "Peugeot 308";
+  elements.fiscalPower.value = "5 CV";
+  elements.mileageDate0.value = "15/06/2026";
+  elements.mileageRoute0.value = "Cherbourg -> Le Rozel";
+  elements.mileageReason0.value = "Chantier";
+  elements.mileageKm0.value = "200";
+  context.updateMileageCalculations();
+  await elements.photos.onchange({
+    target: {
+      files: [{ dataUrl: "data:image/jpeg;base64,receipt" }],
+    },
+  });
+
+  const blob = await context.genPDF();
+  const pages = await getBlobPages(blob);
+
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
+  assert.equal(pages[1].some((entry) => entry.value === "INDEMNITES KILOMETRIQUES"), true);
+  assert.equal(pages[1].some((entry) => entry.value === "100,00"), true);
 });
 
 test("PDF receipt files are merged into the generated note instead of rendered as images", async () => {
