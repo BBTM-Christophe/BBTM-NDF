@@ -64,6 +64,7 @@ function setupPdfSandbox() {
     modeMileage: createElement(),
     expenseFields: createElement(),
     mileageFields: createElement(),
+    prefill: createElement(),
     name: createElement(),
     payment: createElement(),
     object: createElement(),
@@ -244,6 +245,7 @@ test("French labels are stored as valid UTF-8 text", () => {
 
 test("script uses explicit DOM references instead of fragile window globals", () => {
   assert.match(html, /document\.getElementById\(['"]status['"]\)/);
+  assert.match(html, /document\.getElementById\(['"]prefill['"]\)/);
   assert.match(html, /document\.getElementById\(['"]name['"]\)/);
   assert.match(html, /document\.getElementById\(['"]payment['"]\)/);
   assert.match(html, /document\.getElementById\(['"]object['"]\)/);
@@ -252,12 +254,50 @@ test("script uses explicit DOM references instead of fragile window globals", ()
 test("dropdowns show selection placeholder by default", () => {
   assert.match(
     html,
+    /<select id="prefill"[\s\S]*?<option value="" selected>Sélectionner<\/option>/
+  );
+  assert.match(
+    html,
     /<select id="payment"[\s\S]*?<option value="" selected>Sélectionner<\/option>/
   );
   assert.match(
     html,
     /<select id="object"[\s\S]*?<option value="" selected>Sélectionner<\/option>/
   );
+});
+
+test("expense dropdowns include the updated payment and object options", () => {
+  assert.match(html, /<option>CB-Armement - 9893<\/option>/);
+  assert.doesNotMatch(html, /<option>CB-Armement - 5515<\/option>/);
+  assert.doesNotMatch(html, /<option>CB-Armement<\/option>/);
+  assert.match(html, /<option>HIRONDELLE DE LA MANCHE<\/option>/);
+  assert.match(html, /<option>HOLENN EUSA<\/option>/);
+  assert.match(html, /<option>TENDER 1<\/option>/);
+});
+
+test("prefill dropdown fills collaborator, payment and object defaults", () => {
+  const { elements } = setupPdfSandbox();
+
+  elements.prefill.value = "Christophe MINASSIAN";
+  elements.prefill.onchange();
+
+  assert.equal(elements.name.value, "Christophe MINASSIAN");
+  assert.equal(elements.payment.value, "CB-Armement - 9893");
+  assert.equal(elements.object.value, "Armement - CHERBOURG");
+
+  elements.prefill.value = "Capitaine LEROZEL";
+  elements.prefill.onchange();
+
+  assert.equal(elements.name.value, "Capitaine LE ROZEL");
+  assert.equal(elements.payment.value, "CB-LE ROZEL");
+  assert.equal(elements.object.value, "LE ROZEL");
+
+  elements.prefill.value = "";
+  elements.prefill.onchange();
+
+  assert.equal(elements.name.value, "");
+  assert.equal(elements.payment.value, "");
+  assert.equal(elements.object.value, "");
 });
 
 test("PDF first page follows the BBTM expense summary layout", () => {
@@ -295,11 +335,27 @@ test("file input accepts photos and PDF receipts", () => {
 });
 
 test("form exposes a switch between expense and mileage reimbursement modes", () => {
+  assert.match(html, /<title>Dépense<\/title>/);
   assert.match(html, /id=["']modeExpense["']/);
+  assert.doesNotMatch(html, /id=["']modeInvoice["']/);
   assert.match(html, /id=["']modeMileage["']/);
   assert.match(html, /id=["']expenseFields["']/);
   assert.match(html, /id=["']mileageFields["']/);
+  assert.match(html, />Dépense<\/button>/);
+  assert.doesNotMatch(html, />Facture<\/button>/);
   assert.match(html, /Indemnit(?:\u00e9|e)s Kilom(?:\u00e9|e)triques/);
+});
+
+test("document mode switch toggles between expense and mileage modes", () => {
+  const { context, elements } = setupPdfSandbox();
+
+  context.setFormMode("expense");
+  assert.equal(elements.formTitle.textContent, "Dépense");
+  assert.match(elements.expenseFields.className, /max-w-md/);
+
+  context.setFormMode("mileage");
+  assert.equal(elements.formTitle.textContent, "Indemnités Kilométriques");
+  assert.equal(elements.expenseFields.className, "hidden");
 });
 
 test("mileage reimbursement fields include vehicle, fuel, six detail rows and attachment area", () => {
@@ -375,7 +431,7 @@ test("PDF omits the expense summary page when only photos were added", async () 
 
   const pages = await getBlobPages(blob);
   assert.equal(pages.length, 1);
-  assert.equal(pages[0].some((entry) => entry.value === "NOTE DE FRAIS"), false);
+  assert.equal(pages[0].some((entry) => entry.value === "DEPENSE"), false);
   assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
 });
 
@@ -439,7 +495,7 @@ test("PDF places receipts before the expense summary page when a non-photo field
   const pages = await getBlobPages(blob);
   assert.equal(pages.length, 2);
   assert.equal(pages[0].filter((entry) => entry.kind === "image").length, 1);
-  assert.equal(pages[1].some((entry) => entry.value === "NOTE DE FRAIS"), true);
+  assert.equal(pages[1].some((entry) => entry.value === "DEPENSE"), true);
 });
 
 test("PDF places receipts before the mileage reimbursement summary page", async () => {

@@ -38,8 +38,8 @@ exports.handler = async (event) => {
     await transport.sendMail({
       from: process.env.EMAIL_USER,
       to: INVOICES_TO,
-      subject: `Note de frais - ${name}`,
-      text: "Note de frais en pièce jointe.",
+      subject: `Dépense - ${name}`,
+      text: "Dépense en pièce jointe.",
       attachments: [
         {
           filename: "note.pdf",
@@ -52,7 +52,7 @@ exports.handler = async (event) => {
 
     return json(200, { ok: true });
   } catch (error) {
-    console.error("Échec de l'envoi de la note de frais", error);
+    console.error("Échec de l'envoi de la dépense", error);
     return json(500, { ok: false, error: "Échec de l'envoi du PDF." });
   }
 };

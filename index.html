@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Note de frais</title>
+<title>Dépense</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -12,14 +12,29 @@
 <form id="form" class="mx-auto max-w-5xl space-y-5">
 
 <img id="logo" src="logo.png" class="h-12 mx-auto" alt="Logo">
-<h1 id="formTitle" class="text-center text-3xl font-bold">Note de frais</h1>
+<h1 id="formTitle" class="text-center text-3xl font-bold">Dépense</h1>
 
 <div class="mx-auto grid max-w-md grid-cols-2 rounded-2xl bg-white p-1 shadow-sm">
-<button id="modeExpense" type="button" class="rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white">Note de frais</button>
+<button id="modeExpense" type="button" class="rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white">Dépense</button>
 <button id="modeMileage" type="button" class="rounded-xl px-3 py-3 text-sm font-semibold text-slate-700">Indemnités Kilométriques</button>
 </div>
 
 <section id="expenseFields" class="mx-auto max-w-md space-y-5">
+
+<section class="space-y-3">
+<label class="font-semibold" for="prefill">Pré-remplissage :</label>
+<select id="prefill" class="w-full p-4 rounded-2xl bg-white">
+<option value="" selected>Sélectionner</option>
+<option>Benjamin BON</option>
+<option>Julien LECOCQ</option>
+<option>Christophe MINASSIAN</option>
+<option>Sophie HAMEL</option>
+<option>Capitaine GOURY</option>
+<option>Capitaine LEROZEL</option>
+<option>Capitaine SUROIT</option>
+<option>Capitaine LANDEMER</option>
+</select>
+</section>
 
 <label class="font-semibold" for="name">Prénom et NOM :</label>
 <input id="name" class="w-full p-4 rounded-2xl bg-white">
@@ -28,8 +43,7 @@
 <select id="payment" class="w-full p-4 rounded-2xl bg-white">
 <option value="" selected>Sélectionner</option>
 <option>CB-Benjamin</option>
-<option>CB-Armement - 5515</option>
-<option>CB-Armement</option>
+<option>CB-Armement - 9893</option>
 <option>CB-SUROIT</option>
 <option>CB-LE ROZEL</option>
 <option>CB-GOURY</option>
@@ -46,6 +60,9 @@
 <option>SUROIT</option>
 <option>Yard - LE HAVRE</option>
 <option>Armement - CHERBOURG</option>
+<option>HIRONDELLE DE LA MANCHE</option>
+<option>HOLENN EUSA</option>
+<option>TENDER 1</option>
 </select>
 
 <p class="text-sm">Si la facture n'est pas explicite, décrire la nature de la dépense.</p>
@@ -132,6 +149,7 @@ const modeExpense=document.getElementById('modeExpense');
 const modeMileage=document.getElementById('modeMileage');
 const expenseFields=document.getElementById('expenseFields');
 const mileageFields=document.getElementById('mileageFields');
+const prefill=document.getElementById('prefill');
 const ikName=document.getElementById('ikName');
 const ikFunction=document.getElementById('ikFunction');
 const ikPeriod=document.getElementById('ikPeriod');
@@ -151,6 +169,50 @@ const mileageRows=Array.from({length:6},(_,index)=>({
  amount:document.getElementById(`mileageAmount${index}`)
 }));
 const MILEAGE_RATE=0.606;
+const ACTIVE_MODE_CLASS='rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white';
+const INACTIVE_MODE_CLASS='rounded-xl px-3 py-3 text-sm font-semibold text-slate-700';
+const PREFILL_VALUES={
+ 'Benjamin BON':{
+  name:'Benjamin BON',
+  payment:'CB-Benjamin',
+  object:'Armement - CHERBOURG'
+ },
+ 'Julien LECOCQ':{
+  name:'Julien LECOCQ',
+  payment:'CB-Perso',
+  object:'Armement - CHERBOURG'
+ },
+ 'Christophe MINASSIAN':{
+  name:'Christophe MINASSIAN',
+  payment:'CB-Armement - 9893',
+  object:'Armement - CHERBOURG'
+ },
+ 'Sophie HAMEL':{
+  name:'Sophie HAMEL',
+  payment:'CB-Perso',
+  object:'Armement - CHERBOURG'
+ },
+ 'Capitaine GOURY':{
+  name:'Capitaine GOURY',
+  payment:'CB-GOURY',
+  object:'GOURY'
+ },
+ 'Capitaine LEROZEL':{
+  name:'Capitaine LE ROZEL',
+  payment:'CB-LE ROZEL',
+  object:'LE ROZEL'
+ },
+ 'Capitaine SUROIT':{
+  name:'Capitaine SUROIT',
+  payment:'CB-SUROIT',
+  object:'SUROIT'
+ },
+ 'Capitaine LANDEMER':{
+  name:'Capitaine LANDEMER',
+  payment:'CB-LANDEMER',
+  object:'LANDEMER'
+ }
+};
 let activeMode='expense';
 const initialExpenseValues={
  name:name.value,
@@ -182,16 +244,26 @@ function formatMoney(value){
 function setFormMode(mode){
  activeMode=mode==='mileage'?'mileage':'expense';
  const isMileage=activeMode==='mileage';
- formTitle.textContent=isMileage?'Indemnités Kilométriques':'Note de frais';
+ formTitle.textContent=isMileage?'Indemnités Kilométriques':'Dépense';
  expenseFields.className=isMileage?'hidden':'mx-auto max-w-md space-y-5';
  mileageFields.className=isMileage?'space-y-5':'hidden space-y-5';
- modeExpense.className=isMileage
-  ?'rounded-xl px-3 py-3 text-sm font-semibold text-slate-700'
-  :'rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white';
- modeMileage.className=isMileage
-  ?'rounded-xl bg-black px-3 py-3 text-sm font-semibold text-white'
-  :'rounded-xl px-3 py-3 text-sm font-semibold text-slate-700';
+ modeExpense.className=activeMode==='expense'?ACTIVE_MODE_CLASS:INACTIVE_MODE_CLASS;
+ modeMileage.className=isMileage?ACTIVE_MODE_CLASS:INACTIVE_MODE_CLASS;
  updateMileageCalculations();
+}
+
+function applyPrefill(selection){
+ const values=PREFILL_VALUES[selection];
+ if(!values){
+  name.value='';
+  payment.value='';
+  object.value='';
+  return;
+ }
+
+ name.value=values.name;
+ payment.value=values.payment;
+ object.value=values.object;
 }
 
 function updateMileageCalculations(){
@@ -476,6 +548,7 @@ async function readReceiptForPdf(file){
 
 modeExpense.onclick=()=>setFormMode('expense');
 modeMileage.onclick=()=>setFormMode('mileage');
+prefill.onchange=()=>applyPrefill(prefill.value);
 fuelElectric.onchange=()=>{
  if(fuelElectric.checked){
   clearMileageAmounts();
@@ -675,7 +748,7 @@ function drawExpenseSummaryPage(doc){
 
  doc.setFont('helvetica','bold');
  doc.setFontSize(26);
- doc.text('NOTE DE FRAIS',16,76);
+ doc.text('DEPENSE',16,76);
  setBlue(doc);
  doc.setLineWidth(1.4);
  doc.line(16,84,37,84);
@@ -743,7 +816,7 @@ function drawMileageSummaryPage(doc){
  doc.setFont('helvetica','bold');
  doc.setFontSize(16);
  doc.setTextColor(145,178,198);
- doc.text('Note de frais',pageW/2,22,{align:'center'});
+ doc.text('Depense',pageW/2,22,{align:'center'});
  doc.setFontSize(10);
  doc.text('INDEMNITES KILOMETRIQUES',pageW/2,36,{align:'center'});
  doc.setTextColor(0,0,0);
@@ -904,7 +977,7 @@ form.onsubmit=async(e)=>{
   photos.value='';
   render();
   updateMileageCalculations();
-  setStatus('PDF envoyé avec succès. Vous pouvez saisir une nouvelle note de frais.','success');
+  setStatus('PDF envoyé avec succès. Vous pouvez saisir une nouvelle dépense.','success');
  }catch(error){
   setStatus(error.message||"Échec de l'envoi du PDF.",'error');
  }finally{
